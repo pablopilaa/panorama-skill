@@ -1,0 +1,40 @@
+{
+  "title": "Support assistant · build status",
+  "project": "Support assistant",
+  "subtitle": "Where the internal AI support assistant stands: what ships, what is in flight, and what waits on someone else.",
+  "updated": "2026-07-06",
+  "lanes": ["Knowledge", "Indexing", "Agent", "Delivery"],
+  "nodes": [
+    {"id": "docs", "label": "Docs inventory", "status": "done", "layer": 0,
+     "stack": ["Notion export", "Markdown"], "note": "1,400 pages exported and cleaned."},
+    {"id": "tickets", "label": "Ticket history", "status": "in_progress", "layer": 0,
+     "stack": ["Zendesk API"], "note": "Backfill running; two years of resolved tickets."},
+    {"id": "chunker", "label": "Chunking + embeddings", "status": "done", "layer": 1,
+     "stack": ["Python", "embedding model"], "note": "Semantic chunks, 512 tokens each."},
+    {"id": "vectordb", "label": "Vector store", "status": "done", "layer": 1,
+     "stack": ["pgvector"]},
+    {"id": "retriever", "label": "Retriever API", "status": "in_progress", "layer": 2,
+     "stack": ["FastAPI", "hybrid search"], "note": "Search tuned; reranker pending."},
+    {"id": "agent", "label": "Agent core", "status": "in_progress", "layer": 2,
+     "stack": ["Claude API", "tool use"], "note": "Answers plus an escalation tool for humans."},
+    {"id": "evals", "label": "Eval suite", "status": "planned", "layer": 2,
+     "stack": ["golden set"], "note": "200 curated question/answer pairs."},
+    {"id": "guardrails", "label": "Guardrails + logging", "status": "blocked", "layer": 3,
+     "stack": ["PII filter"], "blocker": "Legal review of the logging policy"},
+    {"id": "slack", "label": "Slack bot", "status": "planned", "layer": 3,
+     "stack": ["Bolt SDK"]},
+    {"id": "analytics", "label": "Usage analytics", "status": "planned", "layer": 3,
+     "stack": ["dashboard"]}
+  ],
+  "edges": [
+    {"from": "docs", "to": "chunker", "label": "markdown"},
+    {"from": "tickets", "to": "chunker", "label": "resolved tickets"},
+    {"from": "chunker", "to": "vectordb", "label": "vectors"},
+    {"from": "vectordb", "to": "retriever", "label": "top-k chunks"},
+    {"from": "retriever", "to": "agent", "label": "context"},
+    {"from": "agent", "to": "guardrails", "label": "every response"},
+    {"from": "guardrails", "to": "slack", "label": "filtered output", "style": "aspirational"},
+    {"from": "evals", "to": "agent", "label": "regression gate", "style": "aspirational"},
+    {"from": "slack", "to": "analytics", "label": "usage events", "style": "aspirational"}
+  ]
+}

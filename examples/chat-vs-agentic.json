@@ -1,0 +1,42 @@
+{
+  "type": "table",
+  "title": "Chat assistant vs agentic workflow",
+  "project": "AI tooling",
+  "subtitle": "Two ways to put an LLM to work on the same job: you drive turn by turn, or the model runs a loop with tools. Pick per task, not per team.",
+  "updated": "2026-07-06",
+  "rowHeader": "Axis",
+  "columns": [
+    {"id": "chat", "label": "Chat assistant", "sub": "you drive"},
+    {"id": "agent", "label": "Agentic workflow", "sub": "the model drives", "accent": true}
+  ],
+  "rows": [
+    {"group": "Effort"},
+    {"label": "Setup", "cells": {
+      "chat": {"emphasis": "++", "text": "Open a chat and go."},
+      "agent": {"emphasis": "-", "text": "Tools, permissions and prompts to wire first.", "chips": ["MCP", "skills"]}
+    }},
+    {"label": "Effort per task", "cells": {
+      "chat": {"emphasis": "-", "text": "You steer every turn and paste the context yourself."},
+      "agent": {"emphasis": "++", "text": "One brief, then review the result."}
+    }},
+    {"group": "Control"},
+    {"label": "Oversight", "cells": {
+      "chat": {"emphasis": "++", "text": "You see every step before it happens."},
+      "agent": {"emphasis": "~", "text": "Review checkpoints and diffs after the fact.", "note": "Permission modes decide how much runs unattended."}
+    }},
+    {"label": "Reproducibility", "cells": {
+      "chat": {"emphasis": "-", "text": "Lives inside one conversation."},
+      "agent": {"emphasis": "+", "text": "Prompts, specs and scripts live in the repo.", "chips": ["versioned"]}
+    }},
+    {"group": "Fit"},
+    {"label": "Best at", "cells": {
+      "chat": {"text": "Drafting, thinking out loud, one-off questions."},
+      "agent": {"text": "Multi-step jobs with a checkable result: refactors, reports, pipelines."}
+    }},
+    {"label": "Cost profile", "cells": {
+      "chat": {"emphasis": "+", "text": "Cheap per question."},
+      "agent": {"emphasis": "-", "text": "Token use scales with autonomy.", "note": "Budget caps and smaller models for mechanical steps keep it in range."}
+    }}
+  ],
+  "caption": "++ / -- mark intensity along each axis (more / less), never good or bad. Most days use both: chat to shape the idea, an agent to carry it out."
+}
