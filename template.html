@@ -285,6 +285,18 @@
       w:el.offsetWidth,h:el.offsetHeight,baseY:parseFloat(el.style.top)}))
       .sort((a,b)=>a.y-b.y||a.x-b.x);
     const PAD_X=6,PAD_Y=3;
+    /* First push labels off nodes (same-layer edges drop them in gaps narrower
+       than the label): move to just below or above the overlapped nodes. */
+    const nrects=nodes.map(n=>rect(n.id));
+    labs.forEach(l=>{
+      const hit=nrects.filter(r=>l.x-l.w/2<r.x+r.w+PAD_X&&l.x+l.w/2>r.x-PAD_X&&
+        l.y-l.h/2<r.y+r.h+PAD_Y&&l.y+l.h/2>r.y-PAD_Y);
+      if(!hit.length)return;
+      const bot=Math.max(...hit.map(r=>r.y+r.h)),top=Math.min(...hit.map(r=>r.y));
+      const down=bot+PAD_Y+2+l.h/2,up=top-PAD_Y-2-l.h/2;
+      l.y=(Math.abs(down-l.baseY)<=Math.abs(l.baseY-up))?down:up;
+      l.el.style.top=l.y+'px';
+    });
     for(let i=0;i<labs.length;i++){for(let j=i+1;j<labs.length;j++){
       const A=labs[i],B=labs[j];
       const ax1=A.x-A.w/2,ax2=A.x+A.w/2,ay1=A.y-A.h/2,ay2=A.y+A.h/2;
