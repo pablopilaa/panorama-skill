@@ -168,8 +168,8 @@ Pipeline conventions:
 
 ## Design
 
-- Dark command-center palette by default, with a light theme toggle: near-black ink, a gray ramp, and one red accent (`#f04838`).
-- Color encodes *status*, never *value*. No semantic red/green in data.
+- Dark command-center palette by default, with a light theme toggle: near-black ink, a gray ramp, a red accent (`#f04838`) for blocked and alerts, and a green accent (`#3fb950`) for in-progress, so the two states never share a color.
+- Color encodes *status*, never *value*. No semantic red/green in data cells.
 - System font stack, subtle 4px corners, 1px hairlines. The HTML stays self-contained and small.
 
 ## Conventions

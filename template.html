@@ -11,7 +11,7 @@
     --border:#34343a; --border-strong:#56565e;
     --ink:#ffffff; --muted:#b4b4bb; --faint:#84848d;
     --edge:#56565e; --edge-asp:#84848d;
-    --red:#f04838; --red-deep:#d61f26;
+    --red:#f04838; --red-deep:#d61f26; --green:#3fb950;
     --grad-accent:linear-gradient(135deg,#f04e3e 0%,#d61f26 100%);
     --shadow:0 18px 48px rgba(10,10,11,.45);
     --font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
@@ -20,7 +20,7 @@
     --bg:#f6f6f8; --panel:#ffffff; --panel-2:#f6f6f8;
     --border:#d9d9de; --border-strong:#b4b4bb;
     --ink:#000000; --muted:#56565e; --faint:#84848d;
-    --edge:#b4b4bb; --edge-asp:#d9d9de;
+    --edge:#b4b4bb; --edge-asp:#d9d9de; --green:#1a7f37;
     --shadow:0 18px 48px rgba(10,10,11,.14);
   }
   *{box-sizing:border-box}
@@ -65,7 +65,7 @@
   .node .nblk{margin-top:9px;font-size:10.5px;color:var(--red);display:flex;gap:5px;align-items:flex-start;line-height:1.35}
   /* status marks/labels */
   .s-done{--mark:var(--ink)} .s-done .status{color:var(--muted)}
-  .s-prog{--mark:var(--red)} .s-prog .pmark{background:var(--grad-accent)}
+  .s-prog{--mark:var(--green)}
   .s-plan{--mark:var(--faint);opacity:.62}
   .s-block{--mark:var(--red)} .s-block.node{border-color:var(--red)}
   .node.dim{opacity:.16} .s-plan.node.dim{opacity:.12}
@@ -245,12 +245,25 @@
       const ac={x:a.x+a.w/2,y:a.y+a.h/2},bc={x:b.x+b.w/2,y:b.y+b.h/2};
       let pts=[],hSeg=null;
       if(sN.layer===tN.layer){
-        /* Same-layer: side-to-side via a small detour. */
         const right=bc.x>ac.x;
         const p1={x:a.x+(right?a.w:0),y:ac.y},p2={x:b.x+(right?0:b.w),y:bc.y};
-        const mid=(p1.x+p2.x)/2;
-        pts=[p1,{x:mid,y:p1.y},{x:mid,y:p2.y},p2];
-        hSeg={x:mid,y:(p1.y+p2.y)/2};
+        const lo=Math.min(p1.x,p2.x),hi=Math.max(p1.x,p2.x);
+        const between=nodes.some(n=>{if(n.layer!==sN.layer||n.id===e.from||n.id===e.to)return false;
+          const r=rect(n.id);return r.x<hi&&r.x+r.w>lo;});
+        if(!between){
+          /* Adjacent: side-to-side via a small detour. */
+          const mid=(p1.x+p2.x)/2;
+          pts=[p1,{x:mid,y:p1.y},{x:mid,y:p2.y},p2];
+          hSeg={x:mid,y:(p1.y+p2.y)/2};
+        }else{
+          /* Cards in between: dip through the channel below the row instead
+             of running under the intermediate cards. */
+          const ch=(channelY[sN.layer]!=null)?channelY[sN.layer]:ext[sN.layer].bot+30;
+          const dir=right?1:-1;
+          const j1=p1.x+dir*GAPX/2,j2=p2.x-dir*GAPX/2;
+          pts=[p1,{x:j1,y:p1.y},{x:j1,y:ch},{x:j2,y:ch},{x:j2,y:p2.y},p2];
+          hSeg={x:(j1+j2)/2,y:ch};
+        }
       }else{
         const down=tN.layer>sN.layer;
         const p1={x:ac.x,y:down?a.y+a.h:a.y};
@@ -328,7 +341,7 @@
     elabEls.forEach(({el,e})=>{el.classList.toggle('dim',!!((focused&&!(inCone.has(e.from)&&inCone.has(e.to)))||muted.has(byId[e.from].status)||muted.has(byId[e.to].status)));});
   }
   function showTip(ev,n){
-    const st=STATUS[n.status]||{label:n.status};const mk=(CLS[n.status]==='s-done')?'var(--muted)':(n.status==='in_progress'||n.status==='blocked')?'var(--red)':(st.color||'var(--faint)');
+    const st=STATUS[n.status]||{label:n.status};const mk=(CLS[n.status]==='s-done')?'var(--muted)':(n.status==='blocked')?'var(--red)':(n.status==='in_progress')?'var(--green)':(st.color||'var(--faint)');
     let h='<div class="tt-head"><span class="tt-title">'+esc(n.label)+'</span><span class="tt-status" style="color:'+mk+'">'+esc(st.label||'')+'</span></div>';
     if(n.stack&&n.stack.length)h+='<div class="tt-sec">Stack</div><div class="chips">'+n.stack.map(s=>'<span class="chip">'+esc(s)+'</span>').join('')+'</div>';
     if(n.note)h+='<div class="tt-sec">Note</div><div class="tt-note">'+esc(n.note)+'</div>';
