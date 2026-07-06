@@ -29,6 +29,7 @@ Pick by the question you are answering, not by the topic. `flow` and `pipeline` 
 - **Dashed arrows** for `aspirational` edges: future or gated work that the diagram should show without claiming it happens today.
 - **Click a node** to highlight its dependency cone (everything it needs upstream plus everything that depends on it downstream) while the rest dims.
 - **Clickable legend** to filter by status, a light/dark theme toggle, and a Reset button.
+- **Edit button**: in-place editing of every text (titles, card fields, arrow labels, captions). Edits write through to the embedded spec JSON, and **Save .html** downloads the updated file under the same name, still fully interactive and re-editable. Handy for renaming things without a re-render; for structural changes (new nodes, new edges), edit the spec and re-render.
 - The `pipeline` variant renders compact cards by default: type + name + role. Hover shows the hidden detail, click opens a side panel with the full card plus its incoming and outgoing arrows, and a "Details" button expands every card inline for printing or static export.
 
 ## Workflow

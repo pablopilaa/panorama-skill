@@ -59,12 +59,22 @@
   .pmark{display:inline-block;width:10px;height:10px;margin-right:8px;vertical-align:middle;border-radius:50%;background:var(--mark,var(--faint))}
   .s-done{--mark:var(--ink)} .s-prog{--mark:var(--green)} .s-plan{--mark:var(--faint)} .s-block{--mark:var(--red)}
   caption{caption-side:bottom;text-align:left;font-size:11px;color:var(--muted);padding:14px 4px 0;line-height:1.5}
+  /* ---- EDIT MODE ---- */
+  #save{display:none}
+  body.editing #save{display:inline-block}
+  body.editing [data-e]{outline:1px dashed var(--border-strong);outline-offset:2px;cursor:text}
+  body.editing [data-e]:focus{outline:1px solid var(--ink)}
+  body.editing [data-e]:empty::before{content:"···";color:var(--faint)}
 </style>
 </head>
 <body>
 <header class="toolbar">
   <div><h1 id="title"></h1><div id="subtitle"></div><div id="updated"></div></div>
-  <button class="tool" id="theme">Theme</button>
+  <div style="display:flex;gap:8px;flex:none">
+    <button class="tool" id="edit">Edit</button>
+    <button class="tool" id="save">Save .html</button>
+    <button class="tool" id="theme">Theme</button>
+  </div>
 </header>
 <div class="wrap">
   <table id="tbl"><thead><tr id="head"></tr></thead><tbody id="body"></tbody><caption id="cap"></caption></table>
@@ -73,6 +83,7 @@
 <script id="diagram-data" type="application/json">__DIAGRAM_DATA__</script>
 <script>
 (function(){
+  const SOURCE='<!doctype html>\n'+document.documentElement.outerHTML;
   const SPEC=JSON.parse(document.getElementById('diagram-data').textContent);
   const STATUS=Object.assign({done:{},in_progress:{},planned:{},blocked:{}},SPEC.statuses||{});
   const CLS={done:'s-done',in_progress:'s-prog',planned:'s-plan',blocked:'s-block'};
@@ -81,36 +92,76 @@
   document.getElementById('subtitle').textContent=SPEC.subtitle||"";
   document.getElementById('updated').textContent=SPEC.updated?("updated · "+SPEC.updated):"";
   if(SPEC.caption)document.getElementById('cap').textContent=SPEC.caption;
+  document.getElementById('title').dataset.e='t:title';
+  document.getElementById('subtitle').dataset.e='t:subtitle';
+  document.getElementById('cap').dataset.e='t:caption';
   const cols=SPEC.columns||[];
   const head=document.getElementById('head');
-  const corner=document.createElement('th');corner.innerHTML=SPEC.rowHeader?esc(SPEC.rowHeader):'';head.appendChild(corner);
+  const corner=document.createElement('th');corner.innerHTML=SPEC.rowHeader?esc(SPEC.rowHeader):'';corner.dataset.e='t:rowHeader';head.appendChild(corner);
   cols.forEach(c=>{const th=document.createElement('th');if(c.accent)th.className='accent';
-    th.innerHTML=esc(c.label)+(c.sub?'<span class="csub">'+esc(c.sub)+'</span>':'');head.appendChild(th);});
+    th.innerHTML='<span data-e="c:'+esc(c.id)+':label">'+esc(c.label)+'</span>'+(c.sub?'<span class="csub" data-e="c:'+esc(c.id)+':sub">'+esc(c.sub)+'</span>':'');head.appendChild(th);});
   const body=document.getElementById('body');
-  (SPEC.rows||[]).forEach(r=>{
+  (SPEC.rows||[]).forEach((r,ri)=>{
     if(r.group){const tr=document.createElement('tr');tr.className='group';
-      const td=document.createElement('td');td.colSpan=cols.length+1;td.textContent=r.group;tr.appendChild(td);body.appendChild(tr);return;}
+      const td=document.createElement('td');td.colSpan=cols.length+1;td.textContent=r.group;td.dataset.e='r:'+ri+':group';tr.appendChild(td);body.appendChild(tr);return;}
     const tr=document.createElement('tr');
     const rh=document.createElement('th');rh.className='rowhead '+(r.status?(CLS[r.status]||''):'');
-    let rl=esc(r.label||'');if(r.status)rl='<span class="pmark"></span>'+rl;
-    rh.innerHTML=rl+(r.sub?'<span class="rsub">'+esc(r.sub)+'</span>':'');tr.appendChild(rh);
-    cols.forEach(c=>{const td=document.createElement('td');if(c.accent)td.className='accent';td.innerHTML=renderCell((r.cells||{})[c.id]);tr.appendChild(td);});
+    let rl='<span data-e="r:'+ri+':label">'+esc(r.label||'')+'</span>';if(r.status)rl='<span class="pmark"></span>'+rl;
+    rh.innerHTML=rl+(r.sub?'<span class="rsub" data-e="r:'+ri+':sub">'+esc(r.sub)+'</span>':'');tr.appendChild(rh);
+    cols.forEach(c=>{const td=document.createElement('td');if(c.accent)td.className='accent';td.innerHTML=renderCell((r.cells||{})[c.id],ri,c.id);tr.appendChild(td);});
     body.appendChild(tr);
   });
-  function renderCell(v){
+  function renderCell(v,ri,cid){
+    const D=k=>' data-e="cell:'+ri+':'+cid+':'+k+'"';
     if(v==null||v==='')return '<span class="empty">·</span>';
-    if(typeof v==='string')return esc(v);
-    if(Array.isArray(v))return '<div class="chips">'+v.map(c=>'<span class="chip">'+esc(c)+'</span>').join('')+'</div>';
+    if(typeof v==='string')return '<span'+D('str')+'>'+esc(v)+'</span>';
+    if(Array.isArray(v))return '<div class="chips">'+v.map((c,k)=>'<span class="chip"'+D('chip:'+k)+'>'+esc(c)+'</span>').join('')+'</div>';
     let h='';
-    if(v.emphasis!=null)h+='<span class="emph '+emClass(v.emphasis)+'"'+(v.color?' style="color:'+v.color+'"':'')+'>'+esc(v.emphasis)+'</span> ';
-    if(v.text)h+='<span class="ctext">'+esc(v.text)+'</span>';
-    if(v.chips&&v.chips.length)h+='<div class="chips">'+v.chips.map(c=>'<span class="chip">'+esc(c)+'</span>').join('')+'</div>';
+    if(v.emphasis!=null)h+='<span class="emph '+emClass(v.emphasis)+'"'+(v.color?' style="color:'+v.color+'"':'')+D('emphasis')+'>'+esc(v.emphasis)+'</span> ';
+    if(v.text)h+='<span class="ctext"'+D('text')+'>'+esc(v.text)+'</span>';
+    if(v.chips&&v.chips.length)h+='<div class="chips">'+v.chips.map((c,k)=>'<span class="chip"'+D('chip:'+k)+'>'+esc(c)+'</span>').join('')+'</div>';
     if(v.note)h+='<span class="note" title="'+esc(v.note)+'">[i]</span>';
     return h||'<span class="empty">·</span>';
   }
   function emClass(s){s=String(s).trim();const p=(s.match(/\+/g)||[]).length,m=(s.match(/-/g)||[]).length;
     let cls=p?'pos':m?'neg':'zero';if(Math.max(p,m)>=2)cls+=' mag2';return cls;}
   function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+  /* ---- EDIT MODE ---- */
+  function setPath(path,val){
+    const p=path.split(':');
+    if(p[0]==='t'){if(val)SPEC[p[1]]=val;else delete SPEC[p[1]];return;}
+    if(p[0]==='c'){const c=cols.find(x=>x.id===p[1]);if(!c)return;if(val)c[p[2]]=val;else delete c[p[2]];return;}
+    if(p[0]==='r'){const r=(SPEC.rows||[])[+p[1]];if(!r)return;if(val)r[p[2]]=val;else delete r[p[2]];return;}
+    if(p[0]==='cell'){const r=(SPEC.rows||[])[+p[1]];if(!r||!r.cells)return;
+      const v=r.cells[p[2]],k=p[3];
+      if(k==='str'){r.cells[p[2]]=val;return;}
+      if(k==='chip'){const arr=Array.isArray(v)?v:(v&&v.chips);if(arr)arr[+p[4]]=val;return;}
+      if(!v)return;if(val)v[k]=val;else delete v[k];return;}
+  }
+  function setEditable(on){document.querySelectorAll('[data-e]').forEach(el=>{
+    if(on)el.setAttribute('contenteditable','plaintext-only');else el.removeAttribute('contenteditable');});}
+  document.addEventListener('input',ev=>{
+    if(!document.body.classList.contains('editing'))return;
+    const el=ev.target&&ev.target.closest?ev.target.closest('[data-e]'):null;if(!el)return;
+    setPath(el.dataset.e,el.textContent.replace(/\s+/g,' ').trim());
+  });
+  const editBtn=document.getElementById('edit'),saveBtn=document.getElementById('save');
+  editBtn.onclick=()=>{
+    const on=!document.body.classList.contains('editing');
+    document.body.classList.toggle('editing',on);
+    editBtn.textContent=on?'Done':'Edit';
+    setEditable(on);
+  };
+  saveBtn.onclick=()=>{
+    const data=JSON.stringify(SPEC,(k,v)=>k&&k[0]==='_'?undefined:v,2).replace(/<\//g,'<\\/');
+    const open='<script id="diagram-data" type="application/json">';
+    const i=SOURCE.indexOf(open),j=SOURCE.indexOf('<\/script>',i+open.length);
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([SOURCE.slice(0,i+open.length)+data+SOURCE.slice(j)],{type:'text/html'}));
+    a.download=decodeURIComponent(location.pathname.split('/').pop()||'panorama.html');
+    a.click();URL.revokeObjectURL(a.href);
+  };
   document.getElementById('theme').onclick=()=>document.body.classList.toggle('light');
 })();
 </script>

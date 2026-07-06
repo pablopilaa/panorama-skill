@@ -90,6 +90,19 @@
   #tooltip .tt-note{font-size:12px;color:var(--muted);line-height:1.45}
   #tooltip .tt-blk{margin-top:12px;font-size:11.5px;color:var(--red);border:1px solid var(--red);
     border-radius:4px;padding:8px 10px;line-height:1.4}
+  /* ---- EDIT MODE ---- */
+  #save{display:none}
+  body.editing #save{display:inline-block}
+  body.editing [data-e]{outline:1px dashed var(--border-strong);outline-offset:2px;cursor:text}
+  body.editing [data-e]:focus{outline:1px solid var(--ink)}
+  body.editing #edgelabels{pointer-events:auto;z-index:6}
+  body.editing .elabel{pointer-events:auto}
+  body.editing .node .nstack{-webkit-line-clamp:unset}
+  body:not(.editing) .nstack:empty{display:none}
+  .nnote{display:none}
+  body.editing .nnote{display:block;margin-top:8px;font-size:10.5px;color:var(--muted);line-height:1.4}
+  body:not(.editing) .nblk.empty{display:none}
+  body.editing [data-e]:empty::before{content:"···";color:var(--faint)}
 </style>
 </head>
 <body>
@@ -103,6 +116,8 @@
     <div class="controls">
       <div id="legend"></div>
       <button class="tool" id="reset">Reset</button>
+      <button class="tool" id="edit">Edit</button>
+      <button class="tool" id="save">Save .html</button>
       <button class="tool" id="theme">Theme</button>
     </div>
   </header>
@@ -124,6 +139,7 @@
 <script id="diagram-data" type="application/json">__DIAGRAM_DATA__</script>
 <script>
 (function(){
+  const SOURCE='<!doctype html>\n'+document.documentElement.outerHTML;
   const SPEC=JSON.parse(document.getElementById('diagram-data').textContent);
   const DEFAULT={done:{label:"Done"},in_progress:{label:"In progress"},planned:{label:"Planned"},blocked:{label:"Blocked"}};
   const STATUS=Object.assign({},DEFAULT,SPEC.statuses||{});
@@ -143,6 +159,8 @@
   document.getElementById('title').textContent=SPEC.title||"Project panorama";
   document.title="Panorama · "+(SPEC.project||SPEC.title||"Untitled");
   document.getElementById('subtitle').textContent=SPEC.subtitle||"";
+  document.getElementById('title').dataset.e='t:title';
+  document.getElementById('subtitle').dataset.e='t:subtitle';
   document.getElementById('updated').textContent=SPEC.updated?("updated · "+SPEC.updated):"";
 
   const muted=new Set();
@@ -161,9 +179,10 @@
     d.className='node '+(CLS[n.status]||'');
     if(!CLS[n.status]&&STATUS[n.status]&&STATUS[n.status].color)d.style.setProperty('--mark',STATUS[n.status].color);
     let h='<div class="ntop"><span class="pmark"></span><span class="status">'+esc((STATUS[n.status]||{}).label||n.status||'')+'</span></div>';
-    h+='<div class="nlabel">'+esc(n.label)+'</div>';
-    if(n.stack&&n.stack.length)h+='<div class="nstack">'+esc(n.stack.join(' · '))+'</div>';
-    if(n.blocker)h+='<div class="nblk">⚠ <span>'+esc(n.blocker)+'</span></div>';
+    h+='<div class="nlabel" data-e="n:'+esc(n.id)+':label">'+esc(n.label)+'</div>';
+    h+='<div class="nstack" data-e="n:'+esc(n.id)+':stackline">'+esc((n.stack||[]).join(' · '))+'</div>';
+    h+='<div class="nnote" data-e="n:'+esc(n.id)+':note">'+esc(n.note||'')+'</div>';
+    h+='<div class="nblk'+(n.blocker?'':' empty')+'">⚠ <span data-e="n:'+esc(n.id)+':blocker">'+esc(n.blocker||'')+'</span></div>';
     d.innerHTML=h;
     d.addEventListener('mousemove',ev=>showTip(ev,n));
     d.addEventListener('mouseleave',hideTip);
@@ -239,7 +258,7 @@
       const last=pts[pts.length-1];d+=` L${last.x},${last.y}`;return d;
     }
 
-    edges.forEach(e=>{
+    edges.forEach((e,ei)=>{
       if(!byId[e.from]||!byId[e.to])return;
       const a=rect(e.from),b=rect(e.to),sN=byId[e.from],tN=byId[e.to];
       const ac={x:a.x+a.w/2,y:a.y+a.h/2},bc={x:b.x+b.w/2,y:b.y+b.h/2};
@@ -288,7 +307,7 @@
       path.setAttribute('class','edge'+(asp?' asp':''));
       path.setAttribute('marker-end','url(#'+(asp?'arrow-asp':'arrow')+')');
       svg.appendChild(path);edgeEls.push({el:path,e,asp});
-      if(e.label){const lab=document.createElement('div');lab.className='elabel'+(asp?' asp':'');lab.textContent=e.label;
+      if(e.label){const lab=document.createElement('div');lab.className='elabel'+(asp?' asp':'');lab.textContent=e.label;lab.dataset.e='e:'+ei+':label';
         lab.style.left=hSeg.x+'px';lab.style.top=hSeg.y+'px';elabelsL.appendChild(lab);elabEls.push({el:lab,e});}
     });
     /* Resolve label overlaps: walk left→right within each channel band, push
@@ -319,6 +338,7 @@
         B.y+=above?-dy:dy;B.el.style.top=B.y+'px';
       }
     }}
+    if(document.body.classList.contains('editing'))setEditable(true);
     applyVisibility();
   }
   let focused=null;
@@ -326,7 +346,7 @@
     while(st.length){const n=st.pop();fwd[n].forEach(t=>{if(!s.has(t)){s.add(t);st.push(t);}});}
     st=[id];const seen=new Set([id]);
     while(st.length){const n=st.pop();rev[n].forEach(p=>{if(!seen.has(p)){seen.add(p);s.add(p);st.push(p);}});}return s;}
-  function focusNode(id){focused=(focused===id)?null:id;applyVisibility();}
+  function focusNode(id){if(document.body.classList.contains('editing'))return;focused=(focused===id)?null:id;applyVisibility();}
   document.getElementById('reset').onclick=()=>{focused=null;muted.clear();document.querySelectorAll('.leg.off').forEach(l=>l.classList.remove('off'));applyVisibility();};
   stage.addEventListener('click',()=>{if(focused){focused=null;applyVisibility();}});
   function applyVisibility(){
@@ -341,6 +361,7 @@
     elabEls.forEach(({el,e})=>{el.classList.toggle('dim',!!((focused&&!(inCone.has(e.from)&&inCone.has(e.to)))||muted.has(byId[e.from].status)||muted.has(byId[e.to].status)));});
   }
   function showTip(ev,n){
+    if(document.body.classList.contains('editing'))return;
     const st=STATUS[n.status]||{label:n.status};const mk=(CLS[n.status]==='s-done')?'var(--muted)':(n.status==='blocked')?'var(--red)':(n.status==='in_progress')?'var(--green)':(st.color||'var(--faint)');
     let h='<div class="tt-head"><span class="tt-title">'+esc(n.label)+'</span><span class="tt-status" style="color:'+mk+'">'+esc(st.label||'')+'</span></div>';
     if(n.stack&&n.stack.length)h+='<div class="tt-sec">Stack</div><div class="chips">'+n.stack.map(s=>'<span class="chip">'+esc(s)+'</span>').join('')+'</div>';
@@ -354,6 +375,45 @@
   function hideTip(){tooltip.hidden=true;}
   document.getElementById('theme').onclick=()=>{document.body.classList.toggle('light');drawEdges();};
   function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+  /* ---- EDIT MODE ---- */
+  function setPath(path,val){
+    const p=path.split(':');
+    if(p[0]==='t'){if(val)SPEC[p[1]]=val;else delete SPEC[p[1]];return;}
+    if(p[0]==='e'){const ed=edges[+p[1]];if(!ed)return;if(val)ed.label=val;else delete ed.label;return;}
+    const n=byId[p[1]];if(!n)return;const f=p[2];
+    if(f==='stackline'){const arr=val.split('\u00b7').map(s=>s.trim()).filter(Boolean);if(arr.length)n.stack=arr;else delete n.stack;return;}
+    if(f==='label'){n.label=val;return;}
+    if(val)n[f]=val;else delete n[f];
+  }
+  function setEditable(on){document.querySelectorAll('[data-e]').forEach(el=>{
+    if(on)el.setAttribute('contenteditable','plaintext-only');else el.removeAttribute('contenteditable');});}
+  let relayT;
+  document.addEventListener('input',ev=>{
+    if(!document.body.classList.contains('editing'))return;
+    const el=ev.target&&ev.target.closest?ev.target.closest('[data-e]'):null;if(!el)return;
+    setPath(el.dataset.e,el.textContent.replace(/\s+/g,' ').trim());
+    const blk=el.closest('.nblk');if(blk)blk.classList.toggle('empty',!el.textContent.trim());
+    clearTimeout(relayT);relayT=setTimeout(()=>{const a=document.activeElement;
+      if(a&&a.closest&&a.closest('#edgelabels'))return;doLayout();},700);
+  });
+  const editBtn=document.getElementById('edit'),saveBtn=document.getElementById('save');
+  editBtn.onclick=()=>{
+    const on=!document.body.classList.contains('editing');
+    document.body.classList.toggle('editing',on);
+    editBtn.textContent=on?'Done':'Edit';
+    if(on){focused=null;hideTip();}
+    setEditable(on);doLayout();
+  };
+  saveBtn.onclick=()=>{
+    const data=JSON.stringify(SPEC,(k,v)=>k&&k[0]==='_'?undefined:v,2).replace(/<\//g,'<\\/');
+    const open='<script id="diagram-data" type="application/json">';
+    const i=SOURCE.indexOf(open),j=SOURCE.indexOf('<\/script>',i+open.length);
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([SOURCE.slice(0,i+open.length)+data+SOURCE.slice(j)],{type:'text/html'}));
+    a.download=decodeURIComponent(location.pathname.split('/').pop()||'panorama.html');
+    a.click();URL.revokeObjectURL(a.href);
+  };
   doLayout();window.addEventListener('resize',drawEdges);
 })();
 </script>
