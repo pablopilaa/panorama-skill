@@ -41,6 +41,7 @@
 
   /* shared card content */
   .chead{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:7px;min-height:12px}
+  .nlogo{width:16px;height:16px;flex:none;border-radius:3px;background:var(--logo) center/contain no-repeat}
   .kind{font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--faint)}
   .badge{font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.11em;border-radius:4px;padding:2px 6px}
   .badge.man{color:var(--red);border:1px solid var(--red)}
@@ -209,6 +210,8 @@
   function cardInner(n,tag){
     const T=f=>tag?' data-e="n:'+esc(n.id)+':'+f+'"':'';
     const tags=[];
+    const lg=(SPEC.logoAssets||{})[n.logo];
+    if(lg)tags.push('<span class="nlogo" style="--logo:url('+lg+')"></span>');
     if(n.kind)tags.push('<span class="kind">'+esc(KIND[n.kind]||n.kind)+'</span>');
     if(n.manual)tags.push('<span class="badge man">Manual</span>');
     let h=tags.length?('<div class="chead">'+tags.join('')+'</div>'):'';
@@ -356,6 +359,8 @@
   }
   function fillPanel(n){
     const tags=[];
+    const lg=(SPEC.logoAssets||{})[n.logo];
+    if(lg)tags.push('<span class="nlogo" style="--logo:url('+lg+')"></span>');
     if(n.kind)tags.push('<span class="kind">'+esc(KIND[n.kind]||n.kind)+'</span>');
     if(n.manual)tags.push('<span class="badge man">Manual</span>');
     if(n.status&&ST[n.status])tags.push('<span class="pstatus'+((n.status==='blocked')?' st-red':(n.status==='in_progress')?' st-green':'')+'">'+ST[n.status]+'</span>');

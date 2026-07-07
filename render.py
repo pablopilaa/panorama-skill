@@ -8,10 +8,12 @@ Templates live next to this script and contain the token __DIAGRAM_DATA__,
 which is replaced with the spec verbatim. Python 3 standard library only.
 """
 import argparse
+import base64
 import json
 import pathlib
 import sys
 import urllib.parse
+import urllib.request
 import webbrowser
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -23,6 +25,65 @@ TEMPLATES = {
     "table": HERE / "template-table.html",
     "pipeline": HERE / "template-pipeline.html",
 }
+# Full-color brand SVGs from gilbarbara/logos. Slugs = its filenames
+# (e.g. "nextjs", "supabase", "postgresql", "vercel-icon").
+LOGO_CDN = [
+    "https://cdn.jsdelivr.net/gh/gilbarbara/logos@main/logos/{slug}.svg",
+    "https://cdn.jsdelivr.net/gh/gilbarbara/logos@master/logos/{slug}.svg",
+]
+_LOGO_MIME = {"svg": "image/svg+xml", "png": "image/png", "jpg": "image/jpeg",
+              "jpeg": "image/jpeg", "webp": "image/webp", "gif": "image/gif"}
+
+
+def _data_uri(raw: bytes, mime: str) -> str:
+    return f"data:{mime};base64," + base64.b64encode(raw).decode("ascii")
+
+
+def _resolve_logos(spec: dict, fetch: bool) -> dict:
+    """Map every node `logo` slug to an inlined data URI (deduped).
+
+    Order per slug: a data: URI verbatim -> an explicit file path -> a cached
+    logos/<slug>.svg -> (only with fetch) download from LOGO_CDN and cache.
+    A missing or bad logo is warned and skipped, never fatal.
+    """
+    slugs = {n["logo"] for n in spec.get("nodes", []) if n.get("logo")}
+    if not slugs:
+        return {}
+    cache = HERE / "logos"
+    assets = {}
+    for slug in sorted(slugs):
+        if slug.startswith("data:"):
+            assets[slug] = slug
+            continue
+        p = pathlib.Path(slug)
+        if p.suffix and p.exists():
+            assets[slug] = _data_uri(p.read_bytes(),
+                                     _LOGO_MIME.get(p.suffix.lstrip(".").lower(), "image/svg+xml"))
+            continue
+        hit = cache / f"{slug}.svg"
+        if hit.exists():
+            assets[slug] = _data_uri(hit.read_bytes(), "image/svg+xml")
+            continue
+        if not fetch:
+            print(f"logo '{slug}' not cached - run with --fetch-logos", file=sys.stderr)
+            continue
+        raw = None
+        for tpl in LOGO_CDN:
+            try:
+                url = tpl.format(slug=urllib.parse.quote(slug))
+                req = urllib.request.Request(url, headers={"User-Agent": "panorama-skill"})
+                with urllib.request.urlopen(req, timeout=15) as r:
+                    raw = r.read()
+                break
+            except Exception:  # noqa: BLE001 - try the next candidate URL
+                continue
+        if raw is None:
+            print(f"logo '{slug}' skipped: not found in any source", file=sys.stderr)
+            continue
+        cache.mkdir(parents=True, exist_ok=True)
+        hit.write_bytes(raw)
+        assets[slug] = _data_uri(raw, "image/svg+xml")
+    return assets
 
 
 def _favicon() -> str:
@@ -39,9 +100,12 @@ def _favicon() -> str:
     return "data:image/svg+xml," + urllib.parse.quote(svg)
 
 
-def render(spec_path: pathlib.Path, out_path: pathlib.Path) -> pathlib.Path:
+def render(spec_path: pathlib.Path, out_path: pathlib.Path, fetch_logos: bool = False) -> pathlib.Path:
     spec = json.loads(spec_path.read_text(encoding="utf-8"))  # validate it parses
     template = TEMPLATES.get(spec.get("type", "flow"), TEMPLATES["flow"])
+    logos = _resolve_logos(spec, fetch_logos)
+    if logos:
+        spec["logoAssets"] = logos
     # re-dump so the embedded JSON is clean and </script> can't break out of the tag
     data = json.dumps(spec, ensure_ascii=False).replace("</", "<\\/")
     html = template.read_text(encoding="utf-8")
@@ -55,6 +119,8 @@ def main() -> int:
     ap.add_argument("spec", help="path to the diagram spec JSON")
     ap.add_argument("-o", "--out", help="output HTML path (default: <spec>.html)")
     ap.add_argument("--open", action="store_true", help="open the result in the default browser")
+    ap.add_argument("--fetch-logos", action="store_true",
+                    help="download any node `logo` slugs from gilbarbara/logos and cache in logos/")
     args = ap.parse_args()
 
     spec_path = pathlib.Path(args.spec).resolve()
@@ -63,7 +129,7 @@ def main() -> int:
         return 1
     out_path = pathlib.Path(args.out).resolve() if args.out else spec_path.with_suffix(".html")
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    render(spec_path, out_path)
+    render(spec_path, out_path, fetch_logos=args.fetch_logos)
     print(out_path)
     if args.open:
         webbrowser.open(out_path.as_uri())

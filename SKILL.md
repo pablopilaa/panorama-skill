@@ -81,7 +81,8 @@ The project `CLAUDE.md` loads in every session of that repo, which is what makes
     "order": 0,             // optional: position within the row
     "stack": ["tech", "…"], // chips in the tooltip
     "note": "one line of context (optional)",
-    "blocker": "what it waits on (optional, short phrase)"
+    "blocker": "what it waits on (optional, short phrase)",
+    "logo": "postgresql"    // optional: brand logo slug (see Logos below)
   }],
   "edges": [{
     "from": "id", "to": "id",
@@ -146,6 +147,7 @@ Difference from `flow`: `flow` encodes *status and dependencies* (to track progr
     "in": "what enters (optional)",
     "out": "what leaves (optional)",
     "stack": ["tech", "…"],    // chips
+    "logo": "supabase",        // optional: brand logo slug (see Logos below)
     "manual": true,            // optional: red "Manual" badge (where human work happens)
     "owner": "Ana",            // optional: who operates it
     "note": "extra detail (optional, hover only)",
@@ -166,6 +168,21 @@ Pipeline conventions:
 - **Information density**: cards render compact (type + name + role). Hover shows why, in/out, stack and owner. Click highlights the dependency cone and opens a detail panel with the full card and its arrows. The "Details" button expands everything inline; use it before printing or exporting a static image, where hover and click do not exist. The mobile stack layout always shows everything inline for the same reason.
 - **No audience labels** ("For: CEO") in the spec: those are internal annotations, and the artifact is what the audience sees.
 - `manual` marks steps with human intervention. `payload` is the data that travels, never an action.
+
+## Logos (flow and pipeline)
+
+A node can carry a `"logo": "<slug>"` to show the tool's brand mark in its card
+header. Logos are full-color SVGs from
+[gilbarbara/logos](https://github.com/gilbarbara/logos); the slug is that repo's
+filename (e.g. `nextjs`, `supabase`, `postgresql`, `vercel-icon`, `slack`).
+
+`render.py --fetch-logos` downloads each slug once, caches it under `logos/`,
+and inlines it as a base64 data URI, so the output HTML stays self-contained.
+Without the flag it uses the cache and skips (with a warning) any slug not yet
+cached — a missing logo never breaks the render. `logo` also accepts an explicit
+file path (svg/png) or a `data:` URI. Vector logos add ~1–4 KB each and are
+fixed-size icons, so they do not affect responsiveness. The `logos/` cache is
+gitignored (third-party marks are not committed).
 
 ## Design
 

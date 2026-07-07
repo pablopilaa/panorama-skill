@@ -24,6 +24,12 @@ python3 render.py examples/rag-pipeline.json --open
 
 That renders a pipeline diagram of a RAG docs assistant and opens it in your browser. Try the other two examples for the `flow` and `table` modes.
 
+Add `--fetch-logos` to pull each node's `"logo"` slug (full-color SVGs from [gilbarbara/logos](https://github.com/gilbarbara/logos)) into the card headers, cached and inlined so the HTML stays self-contained:
+
+```bash
+python3 render.py examples/rag-pipeline.json --fetch-logos --open
+```
+
 ## Install as a Claude Code skill
 
 Symlink the repo into your skills folder:
