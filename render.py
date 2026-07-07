@@ -11,6 +11,7 @@ import argparse
 import base64
 import json
 import pathlib
+import re
 import sys
 import urllib.parse
 import urllib.request
@@ -39,51 +40,67 @@ def _data_uri(raw: bytes, mime: str) -> str:
     return f"data:{mime};base64," + base64.b64encode(raw).decode("ascii")
 
 
-def _resolve_logos(spec: dict, fetch: bool) -> dict:
-    """Map every node `logo` slug to an inlined data URI (deduped).
+def _svg_title(raw: bytes) -> str:
+    """The human tool name from an SVG's <title>, if any."""
+    try:
+        m = re.search(r"<title[^>]*>(.*?)</title>", raw.decode("utf-8", "ignore"), re.I | re.S)
+    except Exception:  # noqa: BLE001
+        return ""
+    return m.group(1).strip() if m else ""
+
+
+def _resolve_logos(spec: dict, fetch: bool):
+    """Map every node `logo` slug to an inlined data URI + a display name (deduped).
 
     Order per slug: a data: URI verbatim -> an explicit file path -> a cached
     logos/<slug>.svg -> (only with fetch) download from LOGO_CDN and cache.
-    A missing or bad logo is warned and skipped, never fatal.
+    The display name comes from the SVG's <title> when present. A missing or
+    bad logo is warned and skipped, never fatal.
     """
     slugs = {n["logo"] for n in spec.get("nodes", []) if n.get("logo")}
     if not slugs:
-        return {}
+        return {}, {}
     cache = HERE / "logos"
-    assets = {}
+    assets, names = {}, {}
     for slug in sorted(slugs):
         if slug.startswith("data:"):
             assets[slug] = slug
             continue
+        raw = None
         p = pathlib.Path(slug)
         if p.suffix and p.exists():
-            assets[slug] = _data_uri(p.read_bytes(),
-                                     _LOGO_MIME.get(p.suffix.lstrip(".").lower(), "image/svg+xml"))
-            continue
-        hit = cache / f"{slug}.svg"
-        if hit.exists():
-            assets[slug] = _data_uri(hit.read_bytes(), "image/svg+xml")
-            continue
-        if not fetch:
-            print(f"logo '{slug}' not cached - run with --fetch-logos", file=sys.stderr)
-            continue
-        raw = None
-        for tpl in LOGO_CDN:
-            try:
-                url = tpl.format(slug=urllib.parse.quote(slug))
-                req = urllib.request.Request(url, headers={"User-Agent": "panorama-skill"})
-                with urllib.request.urlopen(req, timeout=15) as r:
-                    raw = r.read()
-                break
-            except Exception:  # noqa: BLE001 - try the next candidate URL
+            raw = p.read_bytes()
+            assets[slug] = _data_uri(raw, _LOGO_MIME.get(p.suffix.lstrip(".").lower(), "image/svg+xml"))
+        else:
+            hit = cache / f"{slug}.svg"
+            if hit.exists():
+                raw = hit.read_bytes()
+                assets[slug] = _data_uri(raw, "image/svg+xml")
+            elif not fetch:
+                print(f"logo '{slug}' not cached - run with --fetch-logos", file=sys.stderr)
                 continue
-        if raw is None:
-            print(f"logo '{slug}' skipped: not found in any source", file=sys.stderr)
-            continue
-        cache.mkdir(parents=True, exist_ok=True)
-        hit.write_bytes(raw)
-        assets[slug] = _data_uri(raw, "image/svg+xml")
-    return assets
+            else:
+                for tpl in LOGO_CDN:
+                    try:
+                        url = tpl.format(slug=urllib.parse.quote(slug))
+                        req = urllib.request.Request(url, headers={"User-Agent": "panorama-skill"})
+                        with urllib.request.urlopen(req, timeout=15) as r:
+                            raw = r.read()
+                        break
+                    except Exception:  # noqa: BLE001 - try the next candidate URL
+                        raw = None
+                        continue
+                if raw is None:
+                    print(f"logo '{slug}' skipped: not found in any source", file=sys.stderr)
+                    continue
+                cache.mkdir(parents=True, exist_ok=True)
+                hit.write_bytes(raw)
+                assets[slug] = _data_uri(raw, "image/svg+xml")
+        if raw is not None:
+            title = _svg_title(raw)
+            if title:
+                names[slug] = title
+    return assets, names
 
 
 def _favicon() -> str:
@@ -103,9 +120,11 @@ def _favicon() -> str:
 def render(spec_path: pathlib.Path, out_path: pathlib.Path, fetch_logos: bool = False) -> pathlib.Path:
     spec = json.loads(spec_path.read_text(encoding="utf-8"))  # validate it parses
     template = TEMPLATES.get(spec.get("type", "flow"), TEMPLATES["flow"])
-    logos = _resolve_logos(spec, fetch_logos)
+    logos, logo_names = _resolve_logos(spec, fetch_logos)
     if logos:
         spec["logoAssets"] = logos
+    if logo_names:
+        spec["logoNames"] = logo_names
     # re-dump so the embedded JSON is clean and </script> can't break out of the tag
     data = json.dumps(spec, ensure_ascii=False).replace("</", "<\\/")
     html = template.read_text(encoding="utf-8")

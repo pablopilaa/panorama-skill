@@ -122,7 +122,7 @@ For comparisons and equivalences. Same renderer, same palette, same theme toggle
 }
 ```
 
-Color rule: `emphasis` is **directional, never evaluative** (more/less, never good/bad). That is why badges render bright or dimmed instead of green or red.
+Color rule: positive emphasis reads green — soft green for `+`, stronger green for `++` — while `-`/`--`/`~` stay neutral (dimmed). The magnitude (one vs two marks) drives the intensity.
 
 ## Pipeline spec (`type: "pipeline"`)
 

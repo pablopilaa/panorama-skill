@@ -180,7 +180,7 @@
     d.className='node '+(CLS[n.status]||'');
     if(!CLS[n.status]&&STATUS[n.status]&&STATUS[n.status].color)d.style.setProperty('--mark',STATUS[n.status].color);
     const lg=(SPEC.logoAssets||{})[n.logo];
-    let h='<div class="ntop">'+(lg?'<span class="nlogo" style="--logo:url('+lg+')"></span>':'')+'<span class="pmark"></span><span class="status">'+esc((STATUS[n.status]||{}).label||n.status||'')+'</span></div>';
+    let h='<div class="ntop">'+(lg?'<span class="nlogo" title="'+esc((SPEC.logoNames||{})[n.logo]||n.logo)+'" style="--logo:url('+lg+')"></span>':'')+'<span class="pmark"></span><span class="status">'+esc((STATUS[n.status]||{}).label||n.status||'')+'</span></div>';
     h+='<div class="nlabel" data-e="n:'+esc(n.id)+':label">'+esc(n.label)+'</div>';
     h+='<div class="nstack" data-e="n:'+esc(n.id)+':stackline">'+esc((n.stack||[]).join(' · '))+'</div>';
     h+='<div class="nnote" data-e="n:'+esc(n.id)+':note">'+esc(n.note||'')+'</div>';

@@ -211,7 +211,7 @@
     const T=f=>tag?' data-e="n:'+esc(n.id)+':'+f+'"':'';
     const tags=[];
     const lg=(SPEC.logoAssets||{})[n.logo];
-    if(lg)tags.push('<span class="nlogo" style="--logo:url('+lg+')"></span>');
+    if(lg)tags.push('<span class="nlogo" title="'+esc((SPEC.logoNames||{})[n.logo]||n.logo)+'" style="--logo:url('+lg+')"></span>');
     if(n.kind)tags.push('<span class="kind">'+esc(KIND[n.kind]||n.kind)+'</span>');
     if(n.manual)tags.push('<span class="badge man">Manual</span>');
     let h=tags.length?('<div class="chead">'+tags.join('')+'</div>'):'';
@@ -360,7 +360,7 @@
   function fillPanel(n){
     const tags=[];
     const lg=(SPEC.logoAssets||{})[n.logo];
-    if(lg)tags.push('<span class="nlogo" style="--logo:url('+lg+')"></span>');
+    if(lg)tags.push('<span class="nlogo" title="'+esc((SPEC.logoNames||{})[n.logo]||n.logo)+'" style="--logo:url('+lg+')"></span>');
     if(n.kind)tags.push('<span class="kind">'+esc(KIND[n.kind]||n.kind)+'</span>');
     if(n.manual)tags.push('<span class="badge man">Manual</span>');
     if(n.status&&ST[n.status])tags.push('<span class="pstatus'+((n.status==='blocked')?' st-red':(n.status==='in_progress')?' st-green':'')+'">'+ST[n.status]+'</span>');
