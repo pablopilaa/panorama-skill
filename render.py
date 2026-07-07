@@ -40,6 +40,22 @@ def _data_uri(raw: bytes, mime: str) -> str:
     return f"data:{mime};base64," + base64.b64encode(raw).decode("ascii")
 
 
+_LOGO_NAMES = {
+    "nextjs": "Next.js", "nextdotjs": "Next.js", "react": "React", "supabase": "Supabase",
+    "postgresql": "PostgreSQL", "postgres": "PostgreSQL", "python": "Python", "fastapi": "FastAPI",
+    "hubspot": "HubSpot", "youtube": "YouTube", "googlesheets": "Google Sheets",
+    "google-sheets": "Google Sheets", "n8n": "n8n", "backblaze": "Backblaze B2",
+    "backblaze-icon": "Backblaze B2", "slack": "Slack", "slack-icon": "Slack", "notion": "Notion",
+    "zendesk": "Zendesk", "git": "Git", "git-icon": "Git", "vercel": "Vercel", "vercel-icon": "Vercel",
+    "openai": "OpenAI", "openai-icon": "OpenAI", "anthropic": "Anthropic", "claude": "Claude",
+    "googlebigquery": "BigQuery", "bigquery": "BigQuery", "metabase": "Metabase",
+}
+
+
+def _prettify(slug: str) -> str:
+    return " ".join(w[:1].upper() + w[1:] for w in re.split(r"[-_]+", slug) if w)
+
+
 def _svg_title(raw: bytes) -> str:
     """The human tool name from an SVG's <title>, if any."""
     try:
@@ -97,9 +113,7 @@ def _resolve_logos(spec: dict, fetch: bool):
                 hit.write_bytes(raw)
                 assets[slug] = _data_uri(raw, "image/svg+xml")
         if raw is not None:
-            title = _svg_title(raw)
-            if title:
-                names[slug] = title
+            names[slug] = _LOGO_NAMES.get(slug) or _svg_title(raw) or _prettify(slug)
     return assets, names
 
 
